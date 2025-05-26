@@ -1,0 +1,17 @@
+# Make sure you're in the correct directory
+cd c:\Users\pcs6\Desktop\SIMPLE DOWLOADER
+
+# Initialize git if not already done
+git init
+
+# Add all files to staging
+git add .
+
+# Commit the changes
+git commit -m "Updated app configuration for Railway deployment"
+
+# If this is your first push, set the remote repository
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+
+# Push the changes
+git push -u origin main
