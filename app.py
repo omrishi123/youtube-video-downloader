@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 import yt_dlp
 import os
+from pathlib import Path
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-for-local')
@@ -32,20 +33,27 @@ def get_formats():
             'format': 'bestvideo+bestaudio/best',
             'no_warnings': True,
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-us,en;q=0.5',
-                'Sec-Fetch-Mode': 'navigate',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Origin': 'https://www.youtube.com',
+                'Referer': 'https://www.youtube.com/',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'cross-site',
             },
-            'cookiesfrombrowser': ('chrome',),  # Uses cookies from Chrome browser
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android'],
-                    'player_skip': ['webpage', 'config'],
+                    'player_client': ['web', 'android'],
                 }
             }
         }
-        
+
+        # Try to use cookies file if it exists
+        cookies_file = Path(__file__).parent / 'youtube.cookies'
+        if cookies_file.exists():
+            ydl_opts['cookiefile'] = str(cookies_file)
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
         

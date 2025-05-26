@@ -1,0 +1,14 @@
+[
+    {
+        "domain": ".youtube.com",
+        "name": "CONSENT",
+        "path": "/",
+        "value": "YES+cb.20231201-11-p1.en+FX"
+    },
+    {
+        "domain": ".youtube.com",
+        "name": "VISITOR_INFO1_LIVE",
+        "path": "/",
+        "value": "AlphaNumericString"
+    }
+]
