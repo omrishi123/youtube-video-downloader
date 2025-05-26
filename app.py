@@ -4,7 +4,16 @@ import yt_dlp
 import os
 
 app = Flask(__name__)
-CORS(app)
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-for-local')
+
+# Configure CORS based on environment
+allowed_origins = os.environ.get('ALLOWED_ORIGINS', '*')
+CORS(app, resources={
+    r"/api/*": {
+        "origins": allowed_origins.split(','),
+        "methods": ["POST", "OPTIONS"]
+    }
+})
 
 @app.route('/')
 def index():
