@@ -30,33 +30,44 @@ def get_formats():
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
-            'extract_flat': True,
-            'format': 'best',  # Default to best available format
+            'format': 'best',
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept-Language': 'en-US,en;q=0.9',
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
                 'Origin': 'https://www.youtube.com',
-                'Referer': 'https://www.youtube.com/'
+                'Referer': 'https://www.youtube.com/',
             },
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web'],
+                    'player_client': ['android', 'web', 'mobile'],
                     'player_skip': ['webpage', 'config', 'js'],
                     'max_comments': 0,
-                    'no_verify': True
                 }
             },
-            'nocheckcertificate': True,
-            'ignoreerrors': True
+            'socket_timeout': 30,
+            'nocheckcertificate': True
         }
-        
-        # Remove cookie file dependency
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-        
+            try:
+                info = ydl.extract_info(url, download=False)
+                if not info:
+                    return jsonify({'error': 'Could not fetch video information'}), 400
+            except Exception as e:
+                if 'Sign in to confirm' in str(e):
+                    # Try alternative format for age-restricted videos
+                    ydl_opts['format'] = 'best[height<=720]'
+                    info = ydl.extract_info(url, download=False)
+                else:
+                    raise e
+
         video_formats = []
         audio_formats = []
         combined_formats = []
+
+        if not info.get('formats'):
+            return jsonify({'error': 'No formats available for this video'}), 400
 
         for f in info.get('formats', []):
             if not f.get('url'):
@@ -112,8 +123,10 @@ def get_formats():
                 'audio_only': audio_formats
             }
         })
+    except yt_dlp.utils.DownloadError as e:
+        return jsonify({'error': f'Download error: {str(e)}'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
