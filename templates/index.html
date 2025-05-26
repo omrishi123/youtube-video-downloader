@@ -2,9 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Video Downloader</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="/static/style.css">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
         /* Add these styles to your existing CSS */
         .tabs {
@@ -35,18 +38,16 @@
 <body>
     <div class="container">
         <h1>YouTube Video Downloader</h1>
-        <form id="download-form">
-            <input type="url" id="url-input" placeholder="Paste YouTube link here…" required>
-            <button type="submit">Download</button>
+        <form id="download-form" onsubmit="handleSubmit(event)">
+            <input type="url" id="url-input" placeholder="Paste YouTube link here..." required>
+            <button type="submit" id="submit-btn">Download</button>
         </form>
-        <div id="spinner" class="spinner" style="display:none;"></div>
+        <div id="spinner" class="spinner" style="display: none;"></div>
         <div id="result"></div>
     </div>
+
     <script>
-        const form = document.getElementById('download-form');
-        const input = document.getElementById('url-input');
-        const result = document.getElementById('result');
-        const spinner = document.getElementById('spinner');
+        let isSubmitting = false;
 
         function formatSize(bytes) {
             if (!bytes) return 'N/A';
@@ -90,22 +91,33 @@
             return html + '</table>';
         }
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            result.innerHTML = '';
-            spinner.style.display = 'block';
-            const url = input.value.trim();
-            
+        async function handleSubmit(event) {
+            event.preventDefault();
+            if (isSubmitting) return;
+
+            const form = document.getElementById('download-form');
+            const input = document.getElementById('url-input');
+            const result = document.getElementById('result');
+            const spinner = document.getElementById('spinner');
+            const submitBtn = document.getElementById('submit-btn');
+
             try {
-                const res = await fetch('/api/formats', {
+                isSubmitting = true;
+                submitBtn.disabled = true;
+                result.innerHTML = '';
+                spinner.style.display = 'block';
+
+                const response = await fetch('/api/formats', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({url})
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: input.value.trim() })
                 });
-                
-                const data = await res.json();
+
+                const data = await response.json();
                 spinner.style.display = 'none';
-                
+
                 if (data.error) {
                     result.innerHTML = `<div class="error">${data.error}</div>`;
                     return;
@@ -143,8 +155,16 @@
             } catch (err) {
                 spinner.style.display = 'none';
                 result.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+            } finally {
+                isSubmitting = false;
+                submitBtn.disabled = false;
             }
-        });
+        }
+
+        // Prevent auto-refresh on load
+        window.onload = () => {
+            document.getElementById('spinner').style.display = 'none';
+        };
     </script>
 </body>
 </html>

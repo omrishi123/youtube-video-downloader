@@ -21,19 +21,20 @@ app.config.update(
 # Configure CORS for Railway
 CORS(app, resources={
     r"/*": {
-        "origins": app.config['ALLOWED_ORIGINS'].split(','),
+        "origins": "*",  # Allow all origins temporarily for debugging
         "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
+        "allow_headers": ["Content-Type"],
+        "supports_credentials": True
     }
 })
 
 @app.after_request
 def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Content-Security-Policy'] = "default-src 'self' *.youtube.com; img-src * data:; media-src *"
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Content-Security-Policy'] = "default-src 'self' https: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data:; media-src 'self' https: blob:;"
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return response
 
 @app.route('/')
