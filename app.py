@@ -4,6 +4,7 @@ import yt_dlp
 import os
 from pathlib import Path
 import logging
+import ssl
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -56,33 +57,43 @@ def get_formats():
         return jsonify({'error': 'No URL provided.'}), 400
     try:
         base_opts = {
-            'quiet': False,  # Enable output for debugging
+            'quiet': False,
             'no_warnings': False,
-            'nocheckcertificate': True,
-            'extract_flat': False,
+            'nocheckcertificate': True,  # Bypass SSL verification
+            'no_check_certificates': True,  # Additional SSL bypass
+            'extract_flat': True,
             'no_call_home': True,
             'geo_bypass': True,
             'socket_timeout': 30,
             'format': 'best',
-            'legacy_server_connect': True,  # Important for Railway
+            'legacy_server_connect': True,
         }
 
-        # Railway-specific configurations
+        # Direct API configurations
         configs = [
             {
-                'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
+                'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
                 'http_headers': {
-                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                    'Accept': '*/*',
                     'Accept-Language': 'en-US,en;q=0.5',
                     'Connection': 'keep-alive',
+                    'Sec-Fetch-Mode': 'navigate'
                 },
-                'extractor_args': {'youtube': {
-                    'player_client': ['web'],
-                    'player_skip': [],
-                }}
-            },
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'web'],
+                        'allow_unplayable_formats': True,
+                        'skip_webpage': True,
+                        'prefer_insecure': True,
+                        'player_skip': ['webpage', 'config', 'js']
+                    }
+                }
+            }
         ]
+
+        # Override SSL context
+        ssl._create_default_https_context = ssl._create_unverified_context
 
         info = None
         last_error = None
