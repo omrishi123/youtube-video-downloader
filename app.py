@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, make_response
 from flask_cors import CORS
 import yt_dlp
 import os
@@ -7,14 +7,24 @@ from pathlib import Path
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-for-local')
 
-# Configure CORS based on environment
-allowed_origins = os.environ.get('ALLOWED_ORIGINS', '*')
+# Update CORS configuration
 CORS(app, resources={
-    r"/api/*": {
-        "origins": allowed_origins.split(','),
-        "methods": ["POST", "OPTIONS"]
+    r"/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "max_age": 3600
     }
 })
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Content-Security-Policy'] = "default-src 'self' *.youtube.com; img-src * data:; media-src *"
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
 
 @app.route('/')
 def index():
@@ -22,6 +32,13 @@ def index():
 
 @app.route('/api/formats', methods=['POST'])
 def get_formats():
+    # Add OPTIONS handler
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
+
     data = request.get_json()
     url = data.get('url')
     if not url:
