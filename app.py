@@ -5,20 +5,25 @@ import os
 from pathlib import Path
 import logging
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-for-local')
-
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Update CORS configuration
+app = Flask(__name__)
+
+# Match Railway environment variables
+app.config.update(
+    SECRET_KEY=os.environ.get('FLASK_SECRET_KEY', '[generate-a-random-string]'),
+    ENV=os.environ.get('FLASK_ENV', 'production'),
+    ALLOWED_ORIGINS=os.environ.get('ALLOWED_ORIGINS', 'https://youtube-video-downloader-production-8a13.up.railway.app/')
+)
+
+# Configure CORS for Railway
 CORS(app, resources={
     r"/*": {
-        "origins": "*",
+        "origins": app.config['ALLOWED_ORIGINS'].split(','),
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
-        "max_age": 3600
     }
 })
 
@@ -165,5 +170,5 @@ def get_formats():
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 10000))  # Railway uses port 10000
     app.run(host='0.0.0.0', port=port)
