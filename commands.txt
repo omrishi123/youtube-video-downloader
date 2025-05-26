@@ -13,5 +13,12 @@ git commit -m "Updated YouTube authentication and headers"
 # If this is your first push, set the remote repository
 git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
 
-# Push to GitHub
+# Pull the remote changes first
+git pull origin main
+
+# If there are merge conflicts, resolve them and then:
+git add .
+git commit -m "Merged remote changes and updated YouTube downloader"
+
+# Finally push your changes
 git push origin main
