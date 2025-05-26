@@ -3,9 +3,14 @@ from flask_cors import CORS
 import yt_dlp
 import os
 from pathlib import Path
+import logging
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-for-local')
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Update CORS configuration
 CORS(app, resources={
@@ -45,60 +50,50 @@ def get_formats():
         return jsonify({'error': 'No URL provided.'}), 400
     try:
         base_opts = {
-            'quiet': True,
-            'no_warnings': True,
+            'quiet': False,  # Enable output for debugging
+            'no_warnings': False,
             'nocheckcertificate': True,
             'extract_flat': False,
             'no_call_home': True,
             'geo_bypass': True,
+            'socket_timeout': 30,
+            'format': 'best',
+            'legacy_server_connect': True,  # Important for Railway
         }
 
-        # Different configurations to try
+        # Railway-specific configurations
         configs = [
             {
-                'format': 'best',
+                'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
                 'http_headers': {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': '*/*',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                    'Origin': 'https://www.youtube.com',
-                    'Referer': 'https://www.youtube.com/',
-                },
-                'extractor_args': {'youtube': {'player_client': ['web']}},
-            },
-            {
-                'format': 'best[height<=720]',
-                'http_headers': {
-                    'User-Agent': 'com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip',
-                    'Accept': '*/*',
+                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                     'Accept-Language': 'en-US,en;q=0.5',
-                    'Origin': 'https://m.youtube.com',
+                    'Connection': 'keep-alive',
                 },
-                'extractor_args': {'youtube': {'player_client': ['android']}},
-            },
-            {
-                'format': 'worst[ext=mp4]',
-                'http_headers': {
-                    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15',
-                    'Accept': '*/*',
-                },
-                'extractor_args': {'youtube': {'player_client': ['ios']}},
+                'extractor_args': {'youtube': {
+                    'player_client': ['web'],
+                    'player_skip': [],
+                }}
             },
         ]
 
         info = None
         last_error = None
 
-        # Try each configuration until one works
-        for config in configs:
+        # Try each configuration and log attempts
+        for i, config in enumerate(configs):
             try:
+                logger.info(f"Trying config {i+1}")
                 ydl_opts = {**base_opts, **config}
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=False)
                 if info and info.get('formats'):
+                    logger.info("Successfully extracted video info")
                     break
             except Exception as e:
                 last_error = str(e)
+                logger.error(f"Config {i+1} failed: {last_error}")
                 continue
 
         if not info or not info.get('formats'):
@@ -165,9 +160,8 @@ def get_formats():
                 'audio_only': audio_formats
             }
         })
-    except yt_dlp.utils.DownloadError as e:
-        return jsonify({'error': f'Download error: {str(e)}'}), 400
     except Exception as e:
+        logger.error(f"Fatal error: {str(e)}")
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 if __name__ == '__main__':
