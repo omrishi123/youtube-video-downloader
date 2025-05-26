@@ -29,33 +29,28 @@ def get_formats():
     try:
         ydl_opts = {
             'quiet': True,
-            'skip_download': True,
-            'format': 'bestvideo+bestaudio/best',
             'no_warnings': True,
+            'extract_flat': True,
+            'format': 'best',  # Default to best available format
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': '*/*',
-                'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-                'Accept-Language': 'en-us,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
+                'Accept-Language': 'en-US,en;q=0.9',
                 'Origin': 'https://www.youtube.com',
-                'Referer': 'https://www.youtube.com/',
-                'Connection': 'keep-alive',
+                'Referer': 'https://www.youtube.com/'
             },
             'extractor_args': {
                 'youtube': {
                     'player_client': ['android', 'web'],
                     'player_skip': ['webpage', 'config', 'js'],
+                    'max_comments': 0,
+                    'no_verify': True
                 }
             },
-            'socket_timeout': 30,
+            'nocheckcertificate': True,
+            'ignoreerrors': True
         }
-
-        # Try to use cookies file if it exists
-        cookies_file = Path(__file__).parent / 'youtube.cookies'
-        if cookies_file.exists():
-            ydl_opts['cookiefile'] = str(cookies_file)
-
+        
+        # Remove cookie file dependency
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
         
