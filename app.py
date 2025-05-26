@@ -32,35 +32,60 @@ def get_formats():
             'no_warnings': True,
             'format': 'best',
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'User-Agent': 'com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip',
+                'Accept': '*/*',
                 'Accept-Language': 'en-US,en;q=0.5',
-                'Origin': 'https://www.youtube.com',
-                'Referer': 'https://www.youtube.com/',
+                'Accept-Encoding': 'gzip, deflate',
+                'Origin': 'https://m.youtube.com',
+                'Referer': 'https://m.youtube.com/',
+                'Connection': 'keep-alive',
             },
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web', 'mobile'],
+                    'player_client': ['android'],
                     'player_skip': ['webpage', 'config', 'js'],
                     'max_comments': 0,
+                    'embed_webpage': False,
+                    'hls_prefer_native': True,
                 }
             },
-            'socket_timeout': 30,
-            'nocheckcertificate': True
+            'socket_timeout': 15,
+            'nocheckcertificate': True,
+            'geo_bypass': True,
+            'geo_bypass_country': 'US'
         }
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        def try_extract(opts):
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                return ydl.extract_info(url, download=False)
+
+        # Try different methods
+        info = None
+        errors = []
+
+        try:
+            info = try_extract(ydl_opts)
+        except Exception as e:
+            errors.append(str(e))
+            # Try with mobile client
+            ydl_opts['http_headers']['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/85.0.4183.109 Mobile/15E148 Safari/604.1'
             try:
-                info = ydl.extract_info(url, download=False)
-                if not info:
-                    return jsonify({'error': 'Could not fetch video information'}), 400
+                info = try_extract(ydl_opts)
             except Exception as e:
-                if 'Sign in to confirm' in str(e):
-                    # Try alternative format for age-restricted videos
-                    ydl_opts['format'] = 'best[height<=720]'
-                    info = ydl.extract_info(url, download=False)
-                else:
-                    raise e
+                errors.append(str(e))
+                # Try with lower quality
+                ydl_opts.update({
+                    'format': 'best[height<=720]',
+                    'player_client': ['tv_embedded', 'android']
+                })
+                try:
+                    info = try_extract(ydl_opts)
+                except Exception as e:
+                    errors.append(str(e))
+                    return jsonify({'error': f'Failed to fetch video: {"; ".join(errors)}'}), 400
+
+        if not info or not info.get('formats'):
+            return jsonify({'error': 'No formats available'}), 400
 
         video_formats = []
         audio_formats = []
